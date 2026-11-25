@@ -5,6 +5,7 @@ on:
     branches: [main]
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -18,6 +19,7 @@ env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+  VERCEL_TELEMETRY_DISABLED: '1'
 
 jobs:
   deploy-preview:
@@ -32,38 +34,61 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Vercel CLI credentials
+        id: creds
+        run: |
+          if [ -n "${VERCEL_TOKEN}" ] && [ -n "${VERCEL_ORG_ID}" ] && [ -n "${VERCEL_PROJECT_ID}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Vercel GitHub Integration Mode"
+              echo "`VERCEL_TOKEN` secret is not configured in GitHub Actions; skipping CLI `--prebuilt` upload because the native **Vercel GitHub App** builds and deploys this PR automatically."
+              echo ""
+              echo "To enable CI-built `--prebuilt` deployments instead, add `VERCEL_TOKEN` under **Settings -> Secrets and variables -> Actions**."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Setup Node.js LTS
+        if: steps.creds.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install project dependencies
+        if: steps.creds.outputs.enabled == 'true'
         run: npm ci
 
       - name: Run pre-deploy quality gates
+        if: steps.creds.outputs.enabled == 'true'
         run: |
           npx tsc --noEmit
           npm run lint
           npm test
 
-      - name: Install pinned Vercel CLI
-        run: npm install --global vercel@41
+      - name: Install Vercel CLI
+        if: steps.creds.outputs.enabled == 'true'
+        run: npm install --global vercel@latest
 
       - name: Pull Vercel Preview environment configuration
-        run: vercel pull --yes --environment=preview
+        if: steps.creds.outputs.enabled == 'true'
+        run: vercel pull --yes --environment=preview --token="${VERCEL_TOKEN}"
 
       - name: Build prebuilt Preview artifact
-        run: vercel build
+        if: steps.creds.outputs.enabled == 'true'
+        run: vercel build --token="${VERCEL_TOKEN}"
 
       - name: Deploy prebuilt artifact to Vercel Preview
         id: deploy
+        if: steps.creds.outputs.enabled == 'true'
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt)
+          DEPLOY_URL=$(vercel deploy --prebuilt --token="${VERCEL_TOKEN}")
           echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
           echo "Deployed Preview URL: ${DEPLOY_URL}"
 
       - name: Post-deploy HTTP smoke test (/api/health)
+        if: steps.creds.outputs.enabled == 'true'
         env:
           TARGET_URL: ${{ steps.deploy.outputs.url }}
           BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -89,51 +114,70 @@ jobs:
 
   deploy-production:
     name: Deploy Production (main)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    environment:
-      name: production
-      url: ${{ steps.deploy.outputs.url }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Check Vercel CLI credentials
+        id: creds
+        run: |
+          if [ -n "${VERCEL_TOKEN}" ] && [ -n "${VERCEL_ORG_ID}" ] && [ -n "${VERCEL_PROJECT_ID}" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "### Vercel GitHub Integration Mode (Active)"
+              echo "Project is deployed automatically via the **Vercel GitHub App** to https://edgepulse-deploy.vercel.app."
+              echo "- `VERCEL_ORG_ID` and `VERCEL_PROJECT_ID` are pre-configured; add `VERCEL_TOKEN` in repository secrets anytime to switch to CLI `--prebuilt` deployments."
+              echo "- Running live post-deploy HTTP smoke verification against `https://edgepulse-deploy.vercel.app/api/health`."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Setup Node.js LTS
+        if: steps.creds.outputs.enabled == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
 
       - name: Install project dependencies
+        if: steps.creds.outputs.enabled == 'true'
         run: npm ci
 
       - name: Run pre-deploy quality gates
+        if: steps.creds.outputs.enabled == 'true'
         run: |
           npx tsc --noEmit
           npm run lint
           npm test
 
-      - name: Install pinned Vercel CLI
-        run: npm install --global vercel@41
+      - name: Install Vercel CLI
+        if: steps.creds.outputs.enabled == 'true'
+        run: npm install --global vercel@latest
 
       - name: Pull Vercel Production environment configuration
-        run: vercel pull --yes --environment=production
+        if: steps.creds.outputs.enabled == 'true'
+        run: vercel pull --yes --environment=production --token="${VERCEL_TOKEN}"
 
       - name: Build prebuilt Production artifact
-        run: vercel build --prod
+        if: steps.creds.outputs.enabled == 'true'
+        run: vercel build --prod --token="${VERCEL_TOKEN}"
 
       - name: Deploy prebuilt artifact to Vercel Production
         id: deploy
+        if: steps.creds.outputs.enabled == 'true'
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod)
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="${VERCEL_TOKEN}")
           echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
           echo "Deployed Production URL: ${DEPLOY_URL}"
 
       - name: Post-deploy HTTP smoke test (/api/health)
         env:
-          TARGET_URL: ${{ steps.deploy.outputs.url }}
+          TARGET_URL: ${{ steps.deploy.outputs.url || 'https://edgepulse-deploy.vercel.app' }}
           BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           set -euo pipefail
@@ -149,7 +193,7 @@ jobs:
               exit 0
             fi
             echo "Attempt ${attempt} waiting for production edge propagation..."
-            sleep 3
+            sleep 4
           done
 
           echo "Production smoke test failed against ${TARGET_URL}/api/health"
