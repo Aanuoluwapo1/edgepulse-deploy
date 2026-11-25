@@ -21,7 +21,7 @@ export function Navbar() {
               <Activity className="h-5 w-5" />
             </span>
             <div>
-              <span className="block text-sm font-semibold tracking-tight text-white">
+              <span className="font-display block text-sm font-bold tracking-tight text-white">
                 {meta.appName}
               </span>
               <span className="block font-mono text-[11px] text-slate-400">
@@ -34,21 +34,21 @@ export function Navbar() {
         <nav aria-label="Primary" className="flex flex-wrap items-center gap-1.5 text-sm">
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
           >
             <Layers className="h-4 w-4 text-cyan-400" />
             <span>Architecture</span>
           </Link>
           <Link
             href="/isr-lab"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
           >
             <RefreshCw className="h-4 w-4 text-indigo-400" />
             <span>ISR Lab</span>
           </Link>
           <Link
             href="/status"
-            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
+            className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-medium text-slate-300 transition hover:bg-slate-800/70 hover:text-white"
           >
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
             <span>Status &amp; Env</span>
@@ -56,20 +56,20 @@ export function Navbar() {
           <Link
             href="/status/admin"
             prefetch={false}
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs text-slate-400 transition hover:border-amber-500/40 hover:text-amber-200"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-900/70 px-2.5 py-1.5 text-xs font-medium text-slate-400 transition hover:border-amber-500/40 hover:text-amber-200"
           >
             <Lock className="h-3.5 w-3.5 text-amber-400" />
             <span>Admin Gate</span>
           </Link>
         </nav>
 
-        <div className="hidden items-center gap-2 font-mono text-xs lg:flex">
+        <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
           <span
             className={`rounded-full border px-2.5 py-0.5 uppercase tracking-wider ${stageStyles[meta.vercelEnv] ?? stageStyles.development}`}
           >
             {meta.vercelEnv}
           </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-slate-800 bg-slate-900 px-2.5 py-0.5 text-slate-300">
+          <span className="hidden items-center gap-1 rounded-full border border-slate-800 bg-slate-900 px-2.5 py-0.5 text-slate-300 sm:inline-flex">
             <Cpu className="h-3.5 w-3.5 text-slate-400" />
             {meta.vercelRegion}
           </span>

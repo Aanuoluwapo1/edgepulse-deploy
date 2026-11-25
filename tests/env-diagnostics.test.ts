@@ -2,8 +2,22 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { inspectEnvironmentVariables, maskSecretValue } from '@/lib/env-diagnostics';
+import { createReleaseFeedSnapshot } from '@/lib/release-feed';
 
 describe('Environment Diagnostics & vercel.json Platform Contract', () => {
+  it('generates unique snapshotId and clean prose on release feed snapshots', () => {
+    const snap = createReleaseFeedSnapshot('fetch-data-cache');
+    expect(snap.snapshotId).toMatch(/^snap-[a-z0-9]+$/);
+    expect(snap.entries.every((e) => !e.title.includes('`') && !e.summary.includes('`'))).toBe(
+      true,
+    );
+  });
+
+  it('classifies non-NEXT_PUBLIC server config as server-config rather than public-build', () => {
+    const report = inspectEnvironmentVariables({ VERCEL_ENV: 'development' });
+    const logSampling = report.variables.find((v) => v.key === 'LOG_SAMPLING_RATE');
+    expect(logSampling?.scope).toBe('server-config');
+  });
   it('masks secret values without leaking raw credentials', () => {
     expect(maskSecretValue(undefined)).toBe('(unset)');
     expect(maskSecretValue('short')).toBe('***** (5 chars)');

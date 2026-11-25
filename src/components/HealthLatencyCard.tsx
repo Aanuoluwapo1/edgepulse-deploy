@@ -64,7 +64,8 @@ export function HealthLatencyCard() {
           </span>
           <div>
             <h2 className="text-base font-semibold text-white">
-              Live Endpoint Telemetry (`GET /api/health`)
+              Live Endpoint Telemetry (
+              <code className="text-sm text-emerald-300">GET /api/health</code>)
             </h2>
             <p className="text-xs text-slate-400">
               Measured browser-to-origin round-trip latency and structured health status.

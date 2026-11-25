@@ -77,12 +77,15 @@ export function RevalidateControls({ isProductionStage }: { isProductionStage: b
         <div>
           <h2 className="flex items-center gap-2 text-lg font-semibold text-white">
             <KeyRound className="h-5 w-5 text-indigo-400" />
-            On-Demand Cache Purge Trigger (`POST /api/revalidate`)
+            On-Demand Cache Purge (
+            <code className="text-sm text-indigo-300">POST /api/revalidate</code>)
           </h2>
-          <p className="mt-1 text-xs text-slate-400">
-            Validates `Authorization: Bearer &lt;token&gt;` against `REVALIDATE_SECRET` (or
-            `local-demo-secret` outside production) and executes
-            `revalidateTag(&apos;release-feed&apos;)`.
+          <p className="mt-1 text-xs leading-relaxed text-slate-400">
+            Validates <code className="text-slate-300">Authorization: Bearer &lt;token&gt;</code>{' '}
+            against <code className="text-slate-300">REVALIDATE_SECRET</code> (or{' '}
+            <code className="text-slate-300">local-demo-secret</code> outside production) and
+            executes{' '}
+            <code className="text-indigo-300">revalidateTag(&apos;release-feed&apos;)</code>.
           </p>
         </div>
       </div>
@@ -97,10 +100,14 @@ export function RevalidateControls({ isProductionStage }: { isProductionStage: b
           </label>
           <input
             id="revalidate-token-input"
-            type="text"
+            type="password"
             value={tokenInput}
             onChange={(e) => setTokenInput(e.target.value)}
-            placeholder="Enter REVALIDATE_SECRET or local-demo-secret"
+            placeholder={
+              isProductionStage
+                ? 'Enter production REVALIDATE_SECRET'
+                : 'Enter REVALIDATE_SECRET or local-demo-secret'
+            }
             className="mt-1.5 w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-slate-100 placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none"
           />
         </div>

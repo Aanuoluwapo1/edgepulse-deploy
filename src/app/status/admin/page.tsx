@@ -13,14 +13,21 @@ export default async function ProtectedAdminStatusPage() {
     <div className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-emerald-500/30 bg-slate-900/70 p-6 sm:p-8">
       <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 font-mono text-xs text-emerald-300">
         <ShieldCheck className="h-4 w-4" />
-        <span>Middleware Gate Authorized (`x-edgepulse-admin-token`)</span>
+        <span>Middleware Gate Authorized (x-edgepulse-admin-token)</span>
       </div>
 
       <h1 className="text-2xl font-bold text-white">Protected Deployment Admin Gate</h1>
-      <p className="text-sm text-slate-300">
-        Your request passed `src/middleware.ts` token validation before reaching this Next.js Server
-        Component. Unauthenticated requests to `/status/admin` are short-circuited at the Edge with
-        an HTTP `401` JSON payload.
+      <p className="text-sm leading-relaxed text-slate-300">
+        Your request passed{' '}
+        <code className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-cyan-300">
+          src/middleware.ts
+        </code>{' '}
+        token validation before reaching this Next.js Server Component. Unauthenticated requests to{' '}
+        <code className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-amber-300">
+          /status/admin
+        </code>{' '}
+        are short-circuited at the Edge with an HTTP <code className="text-rose-300">401</code> JSON
+        payload.
       </p>
 
       <dl className="grid gap-3 rounded-xl border border-slate-800 bg-slate-950/80 p-4 font-mono text-xs sm:grid-cols-2">

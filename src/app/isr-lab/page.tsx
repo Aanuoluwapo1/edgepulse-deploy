@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Clock, Database, RefreshCw, Tag, Terminal } from 'lucide-react';
 import { RevalidateControls } from '@/components/RevalidateControls';
-import { resolveVercelStage } from '@/lib/env-diagnostics';
+import { getDeploymentMetadata, resolveVercelStage } from '@/lib/env-diagnostics';
 import { fetchTaggedReleaseFeed } from '@/lib/release-feed';
 
 export const revalidate = 60;
@@ -13,6 +13,10 @@ export const metadata: Metadata = {
 export default async function IsrLabPage() {
   const feed = await fetchTaggedReleaseFeed();
   const isProductionStage = resolveVercelStage() === 'production';
+  const deployMeta = getDeploymentMetadata();
+  const curlBaseUrl = isProductionStage
+    ? 'https://edgepulse-deploy.vercel.app'
+    : deployMeta.deploymentUrl;
 
   const channelBadge: Record<string, string> = {
     stable: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
@@ -28,9 +32,13 @@ export default async function IsrLabPage() {
           <span>Data Cache Tag: {feed.cacheTag}</span>
         </div>
         <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
-          ISR Cache &amp; On-Demand `revalidateTag` Lab
+          ISR Cache &amp; On-Demand{' '}
+          <code className="rounded bg-slate-800 px-2 py-0.5 text-xl text-indigo-300 sm:text-2xl">
+            revalidateTag
+          </code>{' '}
+          Lab
         </h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-300">
+        <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-300">
           This route renders release notes cached with Next.js Data Cache tags (
           <code className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-xs text-indigo-300">
             next: &#123; tags: [&apos;release-feed&apos;], revalidate: 60 &#125;
@@ -51,10 +59,10 @@ export default async function IsrLabPage() {
           <div className="rounded-xl border border-slate-800 bg-slate-950/80 p-4">
             <span className="flex items-center gap-1.5 text-xs text-slate-400">
               <RefreshCw className="h-3.5 w-3.5 text-cyan-400" />
-              Feed Revision Counter
+              Snapshot ID &amp; Revision
             </span>
-            <p className="mt-1.5 font-mono text-lg font-semibold text-cyan-300">
-              Revision #{feed.revision}
+            <p className="mt-1.5 font-mono text-base font-semibold text-cyan-300">
+              {feed.snapshotId} · Rev #{feed.revision}
             </p>
           </div>
 
@@ -78,7 +86,8 @@ export default async function IsrLabPage() {
       <div className="grid gap-6 lg:grid-cols-12">
         <div className="space-y-4 lg:col-span-7">
           <h2 className="text-lg font-semibold text-white">
-            Server-Rendered Release Notes (`tags: [&apos;release-feed&apos;]`)
+            Server-Rendered Release Notes (
+            <code className="text-sm text-indigo-300">tags: [&apos;release-feed&apos;]</code>)
           </h2>
           {feed.entries.map((entry) => (
             <article
@@ -99,7 +108,9 @@ export default async function IsrLabPage() {
               <h3 className="mt-2 text-base font-semibold text-slate-100">{entry.title}</h3>
               <p className="mt-1.5 text-xs leading-relaxed text-slate-300">{entry.summary}</p>
               <div className="mt-3 flex items-center justify-between border-t border-slate-800/80 pt-2.5 font-mono text-[11px] text-slate-400">
-                <span>Cached at: {feed.generatedAt}</span>
+                <span>
+                  Cached at: {feed.generatedAt} ({feed.snapshotId})
+                </span>
                 <span>Commit: {feed.commitShortSha}</span>
               </div>
             </article>
@@ -118,9 +129,8 @@ export default async function IsrLabPage() {
               Trigger tag invalidation from a CMS webhook or GitHub Actions release job:
             </p>
             <pre className="mt-3 overflow-x-auto rounded-lg border border-slate-800 bg-slate-950 p-3 font-mono text-[11px] text-slate-200">
-              {`curl -X POST http://localhost:3000/api/revalidate \\
-  -H "Authorization: Bearer $REVALIDATE_SECRET" \\
-  -H "Content-Type: application/json"`}
+              {`curl -X POST ${curlBaseUrl}/api/revalidate \\
+  -H "Authorization: Bearer $REVALIDATE_SECRET"`}
             </pre>
           </div>
         </div>

@@ -13,7 +13,7 @@ export interface DeploymentMetadata {
 }
 
 export type EnvVarCategory = 'required' | 'optional' | 'system';
-export type EnvVarScope = 'server-secret' | 'public-build' | 'platform';
+export type EnvVarScope = 'server-secret' | 'server-config' | 'public-build' | 'platform';
 export type EnvVarDiagnosticStatus =
   'configured' | 'fallback-active' | 'missing-required' | 'optional-unset';
 
@@ -261,10 +261,10 @@ const ENV_SPECIFICATIONS: readonly EnvVarSpec[] = [
   {
     key: 'LOG_SAMPLING_RATE',
     category: 'optional',
-    scope: 'public-build',
+    scope: 'server-config',
     isSecret: false,
     allowLocalFallback: false,
-    description: 'Optional structured trace sampling ratio between 0.0 and 1.0.',
+    description: 'Optional server-side structured trace sampling ratio between 0.0 and 1.0.',
   },
   {
     key: 'VERCEL_ENV',

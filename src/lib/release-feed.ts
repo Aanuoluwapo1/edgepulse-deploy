@@ -18,6 +18,7 @@ export interface ReleaseFeedPayload {
   cacheTag: string;
   revalidateWindowSeconds: number;
   generatedAt: string;
+  snapshotId: string;
   revision: number;
   source: 'fetch-data-cache' | 'unstable-cache-fallback';
   environment: string;
@@ -50,17 +51,17 @@ const BASE_RELEASE_ENTRIES: readonly ReleaseNoteEntry[] = [
     title: 'Zero-Downtime Edge Variant Routing & Sticky Experiment Cookies',
     channel: 'stable',
     summary:
-      'Added deterministic A/B request header propagation (`x-edgepulse-variant`) before CDN cache lookup with query-string override support.',
+      'Added deterministic A/B request header propagation (x-edgepulse-variant) before CDN cache lookup with query-string override support.',
     regionRollout: 'Global Anycast -> iad1, sfo1, fra1',
     publishedOffsetMinutes: 14,
   },
   {
     id: 'rel-2026-11-isr-tags',
     version: 'v2.8.3',
-    title: 'Granular Tag-Based Cache Invalidation (`release-feed`)',
+    title: 'Granular Tag-Based Cache Invalidation (release-feed)',
     channel: 'canary',
     summary:
-      'Migrated path-wide revalidation to targeted `revalidateTag` purges, keeping unrelated static routes warm across global edge PoPs.',
+      'Migrated path-wide revalidation to targeted revalidateTag purges, keeping unrelated static routes warm across global edge PoPs.',
     regionRollout: 'All Vercel Edge PoPs (<300ms purge propagation)',
     publishedOffsetMinutes: 95,
   },
@@ -70,7 +71,7 @@ const BASE_RELEASE_ENTRIES: readonly ReleaseNoteEntry[] = [
     title: 'Hardened Security Headers & Prebuilt CI Smoke Gate',
     channel: 'security',
     summary:
-      'Enforced HSTS, X-Frame-Options DENY, nosniff, and automated `/api/health` post-deploy verification in GitHub Actions.',
+      'Enforced HSTS, X-Frame-Options DENY, nosniff, and automated /api/health post-deploy verification in GitHub Actions.',
     regionRollout: 'Production + Preview Branches',
     publishedOffsetMinutes: 260,
   },
@@ -81,12 +82,15 @@ export function createReleaseFeedSnapshot(
 ): ReleaseFeedPayload {
   const meta = getDeploymentMetadata();
   const revision = getReleaseFeedRevision();
-  const nowIso = new Date().toISOString();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const snapshotId = `snap-${now.getTime().toString(36).slice(-6)}`;
 
   return {
     cacheTag: RELEASE_FEED_CACHE_TAG,
     revalidateWindowSeconds: RELEASE_FEED_REVALIDATE_SECONDS,
     generatedAt: nowIso,
+    snapshotId,
     revision,
     source,
     environment: meta.vercelEnv,
@@ -131,7 +135,9 @@ export async function fetchTaggedReleaseFeed(): Promise<ReleaseFeedPayload> {
 
   if (origin) {
     try {
+      const bypassSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET?.trim();
       const response = await fetch(`${origin}/api/release-feed`, {
+        headers: bypassSecret ? { 'x-vercel-protection-bypass': bypassSecret } : undefined,
         next: {
           tags: [RELEASE_FEED_CACHE_TAG],
           revalidate: RELEASE_FEED_REVALIDATE_SECONDS,

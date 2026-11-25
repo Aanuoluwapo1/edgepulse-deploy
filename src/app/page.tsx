@@ -33,7 +33,7 @@ const RENDERING_STRATEGIES: readonly StrategyCard[] = [
     code: 'SSG',
     title: 'Static Site Generation',
     subtitle: 'Build-time HTML & RSC payload pre-computation',
-    computeModel: 'Executed once during `next build`; zero origin compute at request time.',
+    computeModel: 'Executed once during next build; zero origin compute at request time.',
     cacheBehavior: 'Immutable CDN Edge cache across all global PoPs until next deployment.',
     ttfbProfile: '5–20 ms global CDN cache hit',
     idealWorkloads: 'Architecture overviews, marketing landing pages, docs, public runbooks.',
@@ -45,10 +45,8 @@ const RENDERING_STRATEGIES: readonly StrategyCard[] = [
     code: 'ISR',
     title: 'Incremental Static Regeneration',
     subtitle: 'Stale-while-revalidate + on-demand tag invalidation',
-    computeModel:
-      'Serves cached HTML immediately; regenerates in background or via `revalidateTag`.',
-    cacheBehavior:
-      'Vercel Data Cache tagged (`tags: ["release-feed"]`) with sub-300ms global purge.',
+    computeModel: 'Serves cached HTML immediately; regenerates in background or via revalidateTag.',
+    cacheBehavior: 'Vercel Data Cache tagged (release-feed) with sub-300ms global purge.',
     ttfbProfile: '10–25 ms cache hit; zero cold-start penalty for readers',
     idealWorkloads: 'Release feeds, CMS articles, product catalogs, pricing tables.',
     liveDemoRoute: '/isr-lab',
@@ -59,10 +57,8 @@ const RENDERING_STRATEGIES: readonly StrategyCard[] = [
     code: 'SSR',
     title: 'Dynamic Server Rendering',
     subtitle: 'Per-request Node.js Fluid Compute execution',
-    computeModel:
-      'Full Node.js runtime (`process`, TCP sockets, native SDKs) per incoming request.',
-    cacheBehavior:
-      '`Cache-Control: no-store` when reading `headers()`, `cookies()`, or live health.',
+    computeModel: 'Full Node.js runtime (process, TCP sockets, native SDKs) per incoming request.',
+    cacheBehavior: 'Cache-Control: no-store when reading headers(), cookies(), or live health.',
     ttfbProfile: '35–120 ms regional compute (co-located near data store)',
     idealWorkloads: 'Authenticated dashboards, live environment inspectors, transactional APIs.',
     liveDemoRoute: '/status',
@@ -73,9 +69,8 @@ const RENDERING_STRATEGIES: readonly StrategyCard[] = [
     code: 'EDGE',
     title: 'Edge Runtime & Middleware',
     subtitle: 'Web-standard V8 isolates & pre-cache request routing',
-    computeModel: 'Lightweight WinterCG Web APIs (`Request`, `Response`, `crypto`, `performance`).',
-    cacheBehavior:
-      'Middleware executes *before* CDN cache lookup to inject headers or gate routes.',
+    computeModel: 'Lightweight WinterCG Web APIs (Request, Response, crypto, performance).',
+    cacheBehavior: 'Middleware executes before CDN cache lookup to inject headers or gate routes.',
     ttfbProfile: '<5 ms middleware overhead at nearest PoP',
     idealWorkloads: 'A/B variant cookies, header injection, token gates, geo-header inspection.',
     liveDemoRoute: '/api/edge-probe',
@@ -105,8 +100,11 @@ export default function HomePage() {
             <p className="text-sm leading-relaxed text-slate-300 sm:text-base">
               End-to-end Next.js App Router reference platform comparing{' '}
               <span className="font-semibold text-white">SSG</span>,{' '}
-              <span className="font-semibold text-white">ISR (`revalidateTag`)</span>,{' '}
-              <span className="font-semibold text-white">Dynamic Node.js SSR</span>, and{' '}
+              <span className="font-semibold text-white">ISR</span> (
+              <code className="rounded bg-slate-800/90 px-1.5 py-0.5 text-xs text-indigo-300">
+                revalidateTag
+              </code>
+              ), <span className="font-semibold text-white">Dynamic Node.js SSR</span>, and{' '}
               <span className="font-semibold text-white">Edge Runtime / Middleware</span> execution
               with live platform metadata and safe local development fallbacks.
             </p>
@@ -133,7 +131,7 @@ export default function HomePage() {
         {/* Platform Metadata Strip */}
         <div className="mt-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between font-mono text-xs text-slate-400">
               <span>VERCEL_ENV</span>
               <Server className="h-4 w-4 text-cyan-400" />
             </div>
@@ -146,7 +144,7 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between font-mono text-xs text-slate-400">
               <span>VERCEL_REGION</span>
               <Globe className="h-4 w-4 text-indigo-400" />
             </div>
@@ -157,7 +155,7 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between font-mono text-xs text-slate-400">
               <span>VERCEL_GIT_COMMIT_SHA</span>
               <GitCommit className="h-4 w-4 text-emerald-400" />
             </div>
@@ -173,7 +171,7 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-xl border border-slate-800/90 bg-slate-950/70 p-4">
-            <div className="flex items-center justify-between text-xs text-slate-400">
+            <div className="flex items-center justify-between font-mono text-xs text-slate-400">
               <span>EDGE MIDDLEWARE</span>
               <Cpu className="h-4 w-4 text-amber-400" />
             </div>
@@ -261,7 +259,8 @@ export default function HomePage() {
       <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">
         <div className="border-b border-slate-800 px-6 py-4">
           <h2 className="text-base font-semibold text-white">
-            Platform Primitives Matrix (`vercel.json` + Next.js App Router)
+            Platform Primitives Matrix (<code className="text-sm text-cyan-300">vercel.json</code> +
+            Next.js App Router)
           </h2>
           <p className="text-xs text-slate-400">
             How requests flow through Vercel Edge Network headers, Middleware, Cache, and Route
@@ -284,27 +283,41 @@ export default function HomePage() {
                 <td className="px-6 py-3">Edge Middleware</td>
                 <td className="px-6 py-3">Pre-cache interception on matched routes</td>
                 <td className="px-6 py-3">
-                  Injects `x-edgepulse-middleware`, `x-edgepulse-variant`, gates `/status/admin`
+                  Injects <code>x-edgepulse-middleware</code>, <code>x-edgepulse-variant</code>,
+                  gates <code>/status/admin</code>
                 </td>
               </tr>
               <tr>
                 <td className="px-6 py-3 font-mono text-indigo-300">/isr-lab</td>
                 <td className="px-6 py-3">Node.js RSC + Data Cache</td>
-                <td className="px-6 py-3">`tags: [&apos;release-feed&apos;]`, `revalidate: 60`</td>
-                <td className="px-6 py-3">Purged via authenticated `POST /api/revalidate`</td>
+                <td className="px-6 py-3">
+                  <code>tags: [&apos;release-feed&apos;]</code>, <code>revalidate: 60</code>
+                </td>
+                <td className="px-6 py-3">
+                  Purged via authenticated <code>POST /api/revalidate</code>
+                </td>
               </tr>
               <tr>
-                <td className="px-6 py-3 font-mono text-emerald-300">/api/health (`/healthz`)</td>
+                <td className="px-6 py-3 font-mono text-emerald-300">/api/health (/healthz)</td>
                 <td className="px-6 py-3">Node.js Fluid Compute</td>
-                <td className="px-6 py-3">`Cache-Control: no-store, max-age=0`</td>
-                <td className="px-6 py-3">Redirected from `/healthz` in `vercel.json`</td>
+                <td className="px-6 py-3">
+                  <code>Cache-Control: no-store, max-age=0</code>
+                </td>
+                <td className="px-6 py-3">
+                  Redirected from <code>/healthz</code> in <code>vercel.json</code>
+                </td>
               </tr>
               <tr>
                 <td className="px-6 py-3 font-mono text-amber-300">/api/edge-probe</td>
-                <td className="px-6 py-3">`runtime = &apos;edge&apos;`</td>
-                <td className="px-6 py-3">`Cache-Control: no-store, max-age=0`</td>
                 <td className="px-6 py-3">
-                  Echoes `x-vercel-id`, `x-vercel-ip-country` &amp; isolate timing
+                  <code>runtime = &apos;edge&apos;</code>
+                </td>
+                <td className="px-6 py-3">
+                  <code>Cache-Control: no-store, max-age=0</code>
+                </td>
+                <td className="px-6 py-3">
+                  Echoes <code>x-vercel-id</code>, <code>x-vercel-ip-country</code> &amp; isolate
+                  timing
                 </td>
               </tr>
             </tbody>

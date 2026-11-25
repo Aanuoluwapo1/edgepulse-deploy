@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { AlertTriangle, CheckCircle2, Cpu, ExternalLink, Lock, ShieldCheck } from 'lucide-react';
+import { AdminGateProbeCard } from '@/components/AdminGateProbeCard';
 import { HealthLatencyCard } from '@/components/HealthLatencyCard';
 import { inspectEnvironmentVariables, type EnvVarDiagnosticStatus } from '@/lib/env-diagnostics';
 import { getNodeRuntimeVersion } from '@/lib/node-runtime';
@@ -33,7 +34,13 @@ export default async function StatusPage() {
       <section className="rounded-2xl border border-slate-800 bg-slate-900/60 p-6 sm:p-8">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-center">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-3 py-1 font-mono text-xs text-emerald-300">
+            <div
+              className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 font-mono text-xs ${
+                diagnostics.healthy
+                  ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+                  : 'border-rose-500/40 bg-rose-500/10 text-rose-300'
+              }`}
+            >
               {diagnostics.healthy ? (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               ) : (
@@ -48,10 +55,13 @@ export default async function StatusPage() {
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">
               Deployment Health &amp; Environment Inspector
             </h1>
-            <p className="mt-1.5 max-w-3xl text-sm text-slate-300">
-              Inspects the active server compute runtime, measures live `/api/health` latency, and
-              audits required vs optional environment variables while masking sensitive secret
-              values.
+            <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-slate-300">
+              Inspects the active server compute runtime, measures live{' '}
+              <code className="rounded bg-slate-800 px-1.5 py-0.5 text-xs text-emerald-300">
+                /api/health
+              </code>{' '}
+              latency, and audits required vs optional environment variables while masking sensitive
+              secret values.
             </p>
           </div>
 
@@ -62,7 +72,7 @@ export default async function StatusPage() {
               className="inline-flex items-center gap-1.5 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3.5 py-2 text-xs font-medium text-rose-200 transition hover:bg-rose-500/20"
             >
               <Lock className="h-3.5 w-3.5" />
-              Test Protected /status/admin (401)
+              Open /status/admin Directly (401)
             </Link>
             {diagnostics.stage !== 'production' ? (
               <Link
@@ -124,6 +134,8 @@ export default async function StatusPage() {
       </section>
 
       <HealthLatencyCard />
+
+      <AdminGateProbeCard isProductionStage={diagnostics.stage === 'production'} />
 
       {/* Environment Variable Audit Table */}
       <section className="overflow-hidden rounded-xl border border-slate-800 bg-slate-900/50">

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Activity, Globe, Play, Sparkles } from 'lucide-react';
+import { VARIANT_CHANGE_EVENT } from '@/components/MiddlewareVariantPill';
 
 interface ProbeSnapshot {
   endpoint: string;
@@ -15,7 +16,7 @@ interface ProbeSnapshot {
 export function RuntimeProbePanel() {
   const [nodeProbe, setNodeProbe] = useState<ProbeSnapshot | null>(null);
   const [edgeProbe, setEdgeProbe] = useState<ProbeSnapshot | null>(null);
-  const [loadingTarget, setLoadingTarget] = useState<'node' | 'edge' | 'both' | null>(null);
+  const [loadingTarget, setLoadingTarget] = useState<'both' | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function runSingleProbe(url: string): Promise<ProbeSnapshot> {
@@ -44,6 +45,14 @@ export function RuntimeProbePanel() {
       ]);
       setNodeProbe(nodeResult);
       setEdgeProbe(edgeResult);
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent(VARIANT_CHANGE_EVENT, {
+            detail: edgeResult.variantHeader,
+          }),
+        );
+      }
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to execute runtime probes');
     } finally {
@@ -168,8 +177,9 @@ export function RuntimeProbePanel() {
           ) : (
             <p className="mt-3 text-xs text-slate-400">
               Click <span className="font-semibold text-slate-200">Probe Both Runtimes</span> to
-              inspect echoed Vercel geo/request headers (`x-vercel-id`, `x-vercel-ip-country`) and
-              isolate timing.
+              inspect echoed Vercel geo/request headers (
+              <code className="text-slate-300">x-vercel-id</code>,{' '}
+              <code className="text-slate-300">x-vercel-ip-country</code>) and isolate timing.
             </p>
           )}
         </div>
