@@ -1,5 +1,7 @@
 # EdgePulse Deploy (`edgepulse-deploy`)
 
+**Live Production URL:** https://edgepulse-deploy.vercel.app
+
 **Vercel Edge Routing, Rendering Strategy & Deployment Observability Showcase** built with **Next.js (App Router)** and **TypeScript**.
 
 ## Highlights
