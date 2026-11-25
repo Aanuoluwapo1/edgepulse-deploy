@@ -23,19 +23,22 @@ export function resolveExperimentVariant(
 }
 
 function extractAdminToken(request: NextRequest): string | null {
-  const headerToken = request.headers.get('x-edgepulse-admin-token');
+  const headerToken = request.headers.get('x-edgepulse-admin-token')?.trim();
   if (headerToken) {
     return headerToken;
   }
 
   const authHeader = request.headers.get('authorization');
   if (authHeader?.toLowerCase().startsWith('bearer ')) {
-    return authHeader.slice(7).trim();
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) {
+      return bearer;
+    }
   }
 
   // Allow query token override only outside production for interactive browser demos
   if (resolveVercelStage() !== 'production') {
-    const queryToken = request.nextUrl.searchParams.get('token');
+    const queryToken = request.nextUrl.searchParams.get('token')?.trim();
     if (queryToken) {
       return queryToken;
     }
@@ -69,6 +72,7 @@ export function middleware(request: NextRequest): NextResponse {
         },
         { status: 401 },
       );
+      deniedResponse.headers.set('Cache-Control', 'no-store, max-age=0');
       deniedResponse.headers.set('x-edgepulse-middleware', 'active');
       deniedResponse.headers.set('x-edgepulse-variant', variant);
       deniedResponse.headers.set('x-edgepulse-trace-id', traceId);

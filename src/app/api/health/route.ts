@@ -36,7 +36,12 @@ export async function GET(): Promise<NextResponse> {
         service: 'edgepulse-deploy',
         timestamp: new Date().toISOString(),
       },
-      { status: 500 },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+        },
+      },
     );
   }
 }

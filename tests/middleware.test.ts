@@ -55,10 +55,26 @@ describe('Edge Middleware (src/middleware.ts)', () => {
 
     expect(unauthRes.status).toBe(401);
     expect(unauthRes.headers.get('x-edgepulse-middleware')).toBe('active');
+    expect(unauthRes.headers.get('cache-control')).toContain('no-store');
 
     const payload = (await unauthRes.json()) as { status: string; path: string };
     expect(payload.status).toBe('forbidden');
     expect(payload.path).toBe('/status/admin');
+  });
+
+  it('ignores whitespace-only x-edgepulse-admin-token and falls back to valid Authorization Bearer token', () => {
+    process.env.EDGEPULSE_ADMIN_TOKEN = 'strict-admin-secret';
+
+    const req = new NextRequest('https://pulse.example.com/status/admin', {
+      headers: {
+        'x-edgepulse-admin-token': '   ',
+        Authorization: 'Bearer strict-admin-secret',
+      },
+    });
+
+    const res = middleware(req);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('x-edgepulse-middleware')).toBe('active');
   });
 
   it('allows /status/admin when valid x-edgepulse-admin-token header is present', () => {

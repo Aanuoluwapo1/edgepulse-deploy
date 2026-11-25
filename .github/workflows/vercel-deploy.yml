@@ -16,6 +16,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
   VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -83,11 +84,17 @@ jobs:
         id: deploy
         if: steps.creds.outputs.enabled == 'true'
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --token="${VERCEL_TOKEN}")
+          set -euo pipefail
+          RAW_OUTPUT=$(vercel deploy --prebuilt --token="${VERCEL_TOKEN}")
+          DEPLOY_URL=$(printf '%s\n' "${RAW_OUTPUT}" | tail -n 1 | tr -d '[:space:]')
+          if [[ "${DEPLOY_URL}" != https://* ]]; then
+            echo "Unexpected output from vercel deploy: ${RAW_OUTPUT}" >&2
+            exit 1
+          fi
           echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
           echo "Deployed Preview URL: ${DEPLOY_URL}"
 
-      - name: Post-deploy HTTP smoke test (/api/health)
+      - name: Post-deploy HTTP smoke test (/api/health, /api/edge-probe, /status/admin)
         if: steps.creds.outputs.enabled == 'true'
         env:
           TARGET_URL: ${{ steps.deploy.outputs.url }}
@@ -99,18 +106,33 @@ jobs:
             EXTRA_ARGS+=(-H "x-vercel-protection-bypass: ${BYPASS_SECRET}")
           fi
 
+          HEALTH_OK=false
           for attempt in 1 2 3 4 5; do
             RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/health" || true)
             if echo "${RESPONSE}" | grep -q '"status":"ok"'; then
               echo "Preview health check passed on attempt ${attempt}: ${RESPONSE}"
-              exit 0
+              HEALTH_OK=true
+              break
             fi
             echo "Attempt ${attempt} waiting for deployment readiness..."
             sleep 3
           done
 
-          echo "Smoke test failed against ${TARGET_URL}/api/health"
-          exit 1
+          if [ "${HEALTH_OK}" != "true" ]; then
+            echo "Smoke test failed against ${TARGET_URL}/api/health"
+            exit 1
+          fi
+
+          EDGE_RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/edge-probe")
+          echo "${EDGE_RESPONSE}" | grep -q '"runtime":"edge"'
+          echo "Edge runtime probe passed: ${EDGE_RESPONSE}"
+
+          ADMIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${EXTRA_ARGS[@]}" "${TARGET_URL}/status/admin")
+          if [ "${ADMIN_STATUS}" != "401" ]; then
+            echo "Expected /status/admin to return 401 without token, got ${ADMIN_STATUS}"
+            exit 1
+          fi
+          echo "Middleware admin gate check passed (HTTP ${ADMIN_STATUS})."
 
   deploy-production:
     name: Deploy Production (main)
@@ -171,11 +193,17 @@ jobs:
         id: deploy
         if: steps.creds.outputs.enabled == 'true'
         run: |
-          DEPLOY_URL=$(vercel deploy --prebuilt --prod --token="${VERCEL_TOKEN}")
+          set -euo pipefail
+          RAW_OUTPUT=$(vercel deploy --prebuilt --prod --token="${VERCEL_TOKEN}")
+          DEPLOY_URL=$(printf '%s\n' "${RAW_OUTPUT}" | tail -n 1 | tr -d '[:space:]')
+          if [[ "${DEPLOY_URL}" != https://* ]]; then
+            echo "Unexpected output from vercel deploy: ${RAW_OUTPUT}" >&2
+            exit 1
+          fi
           echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
           echo "Deployed Production URL: ${DEPLOY_URL}"
 
-      - name: Post-deploy HTTP smoke test (/api/health)
+      - name: Post-deploy HTTP smoke test (/api/health, /api/edge-probe, /status/admin)
         env:
           TARGET_URL: ${{ steps.deploy.outputs.url || 'https://edgepulse-deploy.vercel.app' }}
           BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
@@ -186,15 +214,30 @@ jobs:
             EXTRA_ARGS+=(-H "x-vercel-protection-bypass: ${BYPASS_SECRET}")
           fi
 
+          HEALTH_OK=false
           for attempt in 1 2 3 4 5; do
             RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/health" || true)
             if echo "${RESPONSE}" | grep -q '"status":"ok"'; then
               echo "Production health check passed on attempt ${attempt}: ${RESPONSE}"
-              exit 0
+              HEALTH_OK=true
+              break
             fi
             echo "Attempt ${attempt} waiting for production edge propagation..."
             sleep 4
           done
 
-          echo "Production smoke test failed against ${TARGET_URL}/api/health"
-          exit 1
+          if [ "${HEALTH_OK}" != "true" ]; then
+            echo "Production smoke test failed against ${TARGET_URL}/api/health"
+            exit 1
+          fi
+
+          EDGE_RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/edge-probe")
+          echo "${EDGE_RESPONSE}" | grep -q '"runtime":"edge"'
+          echo "Production edge probe passed: ${EDGE_RESPONSE}"
+
+          ADMIN_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${EXTRA_ARGS[@]}" "${TARGET_URL}/status/admin")
+          if [ "${ADMIN_STATUS}" != "401" ]; then
+            echo "Expected /status/admin to return 401 without token, got ${ADMIN_STATUS}"
+            exit 1
+          fi
+          echo "Production middleware admin gate check passed (HTTP ${ADMIN_STATUS})."

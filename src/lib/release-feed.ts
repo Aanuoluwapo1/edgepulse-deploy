@@ -117,14 +117,14 @@ const getFallbackCachedFeed = unstable_cache(
 );
 
 function resolveInternalOrigin(): string | null {
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    return null;
+  }
   if (process.env.NEXT_PUBLIC_SITE_URL) {
     return process.env.NEXT_PUBLIC_SITE_URL.replace(/\/$/, '');
   }
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, '')}`;
-  }
-  if (process.env.NEXT_PHASE === 'phase-production-build') {
-    return null;
   }
   const port = process.env.PORT || '3000';
   return `http://127.0.0.1:${port}`;

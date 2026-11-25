@@ -26,6 +26,7 @@ export default async function StatusPage() {
     configured: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
     'fallback-active': 'border-cyan-500/40 bg-cyan-500/10 text-cyan-300',
     'missing-required': 'border-rose-500/40 bg-rose-500/10 text-rose-300',
+    'invalid-format': 'border-amber-500/40 bg-amber-500/10 text-amber-300',
     'optional-unset': 'border-slate-700 bg-slate-800/80 text-slate-400',
   };
 
@@ -49,7 +50,7 @@ export default async function StatusPage() {
               <span>
                 {diagnostics.healthy
                   ? 'Environment Validation Passed'
-                  : `${diagnostics.summary.missingRequired} Required Variable(s) Missing`}
+                  : `${diagnostics.summary.missingRequired + diagnostics.summary.invalidFormat} Environment Issue(s) Detected`}
               </span>
             </div>
             <h1 className="mt-3 text-2xl font-bold tracking-tight text-white sm:text-3xl">

@@ -13,10 +13,30 @@ describe('Environment Diagnostics & vercel.json Platform Contract', () => {
     );
   });
 
-  it('classifies non-NEXT_PUBLIC server config as server-config rather than public-build', () => {
+  it('classifies non-NEXT_PUBLIC server config as server-config and validates LOG_SAMPLING_RATE range', () => {
     const report = inspectEnvironmentVariables({ VERCEL_ENV: 'development' });
     const logSampling = report.variables.find((v) => v.key === 'LOG_SAMPLING_RATE');
     expect(logSampling?.scope).toBe('server-config');
+
+    const validRateReport = inspectEnvironmentVariables({
+      VERCEL_ENV: 'development',
+      LOG_SAMPLING_RATE: '0.25',
+    });
+    expect(validRateReport.healthy).toBe(true);
+    expect(validRateReport.summary.invalidFormat).toBe(0);
+    expect(validRateReport.variables.find((v) => v.key === 'LOG_SAMPLING_RATE')?.status).toBe(
+      'configured',
+    );
+
+    const invalidRateReport = inspectEnvironmentVariables({
+      VERCEL_ENV: 'development',
+      LOG_SAMPLING_RATE: '2.5',
+    });
+    expect(invalidRateReport.healthy).toBe(false);
+    expect(invalidRateReport.summary.invalidFormat).toBe(1);
+    expect(invalidRateReport.variables.find((v) => v.key === 'LOG_SAMPLING_RATE')?.status).toBe(
+      'invalid-format',
+    );
   });
   it('masks secret values without leaking raw credentials', () => {
     expect(maskSecretValue(undefined)).toBe('(unset)');

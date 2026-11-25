@@ -11,6 +11,7 @@ vi.mock('next/cache', async () => {
 import { revalidateTag } from 'next/cache';
 import { GET as getEdgeProbe, runtime as edgeProbeRuntime } from '@/app/api/edge-probe/route';
 import { GET as getHealth } from '@/app/api/health/route';
+import { GET as getReleaseFeed } from '@/app/api/release-feed/route';
 import { POST as postRevalidate } from '@/app/api/revalidate/route';
 
 const ORIGINAL_ENV = { ...process.env };
@@ -182,5 +183,34 @@ describe('Route Handlers (/api/health, /api/edge-probe, /api/revalidate)', () =>
       }),
     );
     expect(prodUnconfiguredRes.status).toBe(401);
+    expect(prodUnconfiguredRes.headers.get('cache-control')).toContain('no-store');
+  });
+
+  it('POST /api/revalidate ignores whitespace-only Bearer header and falls back to x-revalidate-token', async () => {
+    process.env.REVALIDATE_SECRET = 'prod-revalidate-secret-xyz';
+
+    const fallbackRes = await postRevalidate(
+      new Request('http://localhost:3000/api/revalidate', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer    ',
+          'x-revalidate-token': 'prod-revalidate-secret-xyz',
+        },
+      }),
+    );
+
+    expect(fallbackRes.status).toBe(200);
+    expect(fallbackRes.headers.get('cache-control')).toContain('no-store');
+    expect(revalidateTag).toHaveBeenCalledWith('release-feed');
+  });
+
+  it('GET /api/release-feed returns fresh non-cached snapshot JSON', async () => {
+    const res = await getReleaseFeed();
+    expect(res.status).toBe(200);
+    expect(res.headers.get('cache-control')).toContain('no-store');
+    const data = (await res.json()) as { cacheTag: string; entries: unknown[] };
+    expect(data.cacheTag).toBe('release-feed');
+    expect(Array.isArray(data.entries)).toBe(true);
+    expect(data.entries.length).toBeGreaterThan(0);
   });
 });

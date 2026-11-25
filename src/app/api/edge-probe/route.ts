@@ -51,7 +51,13 @@ export async function GET(request: Request): Promise<Response> {
         runtime: 'edge',
         timestamp: new Date().toISOString(),
       },
-      { status: 500 },
+      {
+        status: 500,
+        headers: {
+          'Cache-Control': 'no-store, max-age=0',
+          'x-edgepulse-runtime': 'edge',
+        },
+      },
     );
   }
 }

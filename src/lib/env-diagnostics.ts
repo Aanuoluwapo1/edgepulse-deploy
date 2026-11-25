@@ -15,7 +15,7 @@ export interface DeploymentMetadata {
 export type EnvVarCategory = 'required' | 'optional' | 'system';
 export type EnvVarScope = 'server-secret' | 'server-config' | 'public-build' | 'platform';
 export type EnvVarDiagnosticStatus =
-  'configured' | 'fallback-active' | 'missing-required' | 'optional-unset';
+  'configured' | 'fallback-active' | 'missing-required' | 'invalid-format' | 'optional-unset';
 
 export interface EnvVarDiagnosticItem {
   key: string;
@@ -35,6 +35,7 @@ export interface EnvironmentDiagnosticsReport {
     configured: number;
     fallbackActive: number;
     missingRequired: number;
+    invalidFormat: number;
     optionalUnset: number;
   };
   variables: EnvVarDiagnosticItem[];
@@ -302,6 +303,7 @@ export function inspectEnvironmentVariables(
   let configured = 0;
   let fallbackActive = 0;
   let missingRequired = 0;
+  let invalidFormat = 0;
   let optionalUnset = 0;
 
   const variables: EnvVarDiagnosticItem[] = ENV_SPECIFICATIONS.map((spec) => {
@@ -309,6 +311,22 @@ export function inspectEnvironmentVariables(
     const hasValue = Boolean(rawValue && rawValue.length > 0);
 
     if (hasValue) {
+      if (spec.key === 'LOG_SAMPLING_RATE') {
+        const parsed = Number(rawValue);
+        if (Number.isNaN(parsed) || parsed < 0 || parsed > 1) {
+          invalidFormat += 1;
+          return {
+            key: spec.key,
+            category: spec.category,
+            scope: spec.scope,
+            isSecret: spec.isSecret,
+            status: 'invalid-format',
+            maskedValue: `${rawValue} (expected 0.0–1.0)`,
+            description: spec.description,
+          };
+        }
+      }
+
       configured += 1;
       return {
         key: spec.key,
@@ -378,13 +396,14 @@ export function inspectEnvironmentVariables(
   });
 
   return {
-    healthy: missingRequired === 0,
+    healthy: missingRequired === 0 && invalidFormat === 0,
     stage,
     summary: {
       total: variables.length,
       configured,
       fallbackActive,
       missingRequired,
+      invalidFormat,
       optionalUnset,
     },
     variables,

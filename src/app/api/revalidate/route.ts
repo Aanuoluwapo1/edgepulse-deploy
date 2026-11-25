@@ -3,22 +3,29 @@ import { NextResponse } from 'next/server';
 import { validateRevalidateToken } from '@/lib/env-diagnostics';
 import { incrementReleaseFeedRevision, RELEASE_FEED_CACHE_TAG } from '@/lib/release-feed';
 
+const NO_STORE_HEADERS = {
+  'Cache-Control': 'no-store, max-age=0',
+} as const;
+
 async function extractCandidateToken(request: Request): Promise<string | null> {
   const authHeader = request.headers.get('authorization');
   if (authHeader?.toLowerCase().startsWith('bearer ')) {
-    return authHeader.slice(7).trim();
+    const bearer = authHeader.slice(7).trim();
+    if (bearer) {
+      return bearer;
+    }
   }
 
-  const customHeader = request.headers.get('x-revalidate-token');
+  const customHeader = request.headers.get('x-revalidate-token')?.trim();
   if (customHeader) {
-    return customHeader.trim();
+    return customHeader;
   }
 
   const contentType = request.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {
     try {
       const body = (await request.json()) as { token?: unknown };
-      if (typeof body.token === 'string') {
+      if (typeof body.token === 'string' && body.token.trim().length > 0) {
         return body.token.trim();
       }
     } catch {
@@ -42,7 +49,7 @@ export async function POST(request: Request): Promise<NextResponse> {
           authMode: validation.mode,
           error: validation.reason ?? 'Unauthorized revalidation request',
         },
-        { status: 401 },
+        { status: 401, headers: NO_STORE_HEADERS },
       );
     }
 
@@ -67,7 +74,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         revision: nextRevision,
         revalidatedAt: new Date().toISOString(),
       },
-      { status: 200 },
+      { status: 200, headers: NO_STORE_HEADERS },
     );
   } catch (error) {
     console.error('[edgepulse-deploy] POST /api/revalidate failed:', error);
@@ -76,7 +83,7 @@ export async function POST(request: Request): Promise<NextResponse> {
         revalidated: false,
         error: 'Internal error while purging cache tag',
       },
-      { status: 500 },
+      { status: 500, headers: NO_STORE_HEADERS },
     );
   }
 }

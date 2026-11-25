@@ -1,9 +1,18 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { headers } from 'next/headers';
 import { ArrowLeft, ShieldCheck } from 'lucide-react';
 import { getDeploymentMetadata } from '@/lib/env-diagnostics';
 
 export const dynamic = 'force-dynamic';
+
+export const metadata: Metadata = {
+  title: 'Protected Admin Gate',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function ProtectedAdminStatusPage() {
   const reqHeaders = await headers();
