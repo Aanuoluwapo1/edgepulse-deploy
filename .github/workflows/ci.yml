@@ -1,0 +1,48 @@
+name: Continuous Integration
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, Lint, Test & Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies cleanly
+        run: npm ci
+
+      - name: Run strict TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Run ESLint (zero warnings allowed)
+        run: npm run lint
+
+      - name: Execute unit & route handler test suite
+        run: npm test
+
+      - name: Build production Next.js bundle
+        env:
+          NEXT_PUBLIC_APP_NAME: 'EdgePulse Deploy'
+          NEXT_PUBLIC_DEPLOYMENT_CHANNEL: 'ci-verification'
+        run: npm run build

@@ -1,0 +1,156 @@
+name: Vercel Prebuilt Deployment Pipeline
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: vercel-deploy-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+jobs:
+  deploy-preview:
+    name: Deploy Preview (Pull Request)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      preview_url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Run pre-deploy quality gates
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npm test
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@41
+
+      - name: Pull Vercel Preview environment configuration
+        run: vercel pull --yes --environment=preview
+
+      - name: Build prebuilt Preview artifact
+        run: vercel build
+
+      - name: Deploy prebuilt artifact to Vercel Preview
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt)
+          echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          echo "Deployed Preview URL: ${DEPLOY_URL}"
+
+      - name: Post-deploy HTTP smoke test (/api/health)
+        env:
+          TARGET_URL: ${{ steps.deploy.outputs.url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          EXTRA_ARGS=()
+          if [ -n "${BYPASS_SECRET}" ]; then
+            EXTRA_ARGS+=(-H "x-vercel-protection-bypass: ${BYPASS_SECRET}")
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/health" || true)
+            if echo "${RESPONSE}" | grep -q '"status":"ok"'; then
+              echo "Preview health check passed on attempt ${attempt}: ${RESPONSE}"
+              exit 0
+            fi
+            echo "Attempt ${attempt} waiting for deployment readiness..."
+            sleep 3
+          done
+
+          echo "Smoke test failed against ${TARGET_URL}/api/health"
+          exit 1
+
+  deploy-production:
+    name: Deploy Production (main)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: production
+      url: ${{ steps.deploy.outputs.url }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Run pre-deploy quality gates
+        run: |
+          npx tsc --noEmit
+          npm run lint
+          npm test
+
+      - name: Install pinned Vercel CLI
+        run: npm install --global vercel@41
+
+      - name: Pull Vercel Production environment configuration
+        run: vercel pull --yes --environment=production
+
+      - name: Build prebuilt Production artifact
+        run: vercel build --prod
+
+      - name: Deploy prebuilt artifact to Vercel Production
+        id: deploy
+        run: |
+          DEPLOY_URL=$(vercel deploy --prebuilt --prod)
+          echo "url=${DEPLOY_URL}" >> "$GITHUB_OUTPUT"
+          echo "Deployed Production URL: ${DEPLOY_URL}"
+
+      - name: Post-deploy HTTP smoke test (/api/health)
+        env:
+          TARGET_URL: ${{ steps.deploy.outputs.url }}
+          BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          set -euo pipefail
+          EXTRA_ARGS=()
+          if [ -n "${BYPASS_SECRET}" ]; then
+            EXTRA_ARGS+=(-H "x-vercel-protection-bypass: ${BYPASS_SECRET}")
+          fi
+
+          for attempt in 1 2 3 4 5; do
+            RESPONSE=$(curl -fsSL "${EXTRA_ARGS[@]}" "${TARGET_URL}/api/health" || true)
+            if echo "${RESPONSE}" | grep -q '"status":"ok"'; then
+              echo "Production health check passed on attempt ${attempt}: ${RESPONSE}"
+              exit 0
+            fi
+            echo "Attempt ${attempt} waiting for production edge propagation..."
+            sleep 3
+          done
+
+          echo "Production smoke test failed against ${TARGET_URL}/api/health"
+          exit 1
